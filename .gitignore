@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.turbo/
+**/src/generated/
+*.tsbuildinfo
+.env
+.env.local
+**/keys/*.pem
+services/*/prisma/dev.db
+coverage/

@@ -1,0 +1,10 @@
+{
+  "name": "@openteams/mcp-ai-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server: live Whisper STT, live translation, dynamic meeting org-charts, action-item extraction and catch-up summaries.",
+  "scripts": {
+    "build": "echo 'Phase 6: not yet implemented'",
+    "typecheck": "echo 'Phase 6: not yet implemented'"
+  }
+}

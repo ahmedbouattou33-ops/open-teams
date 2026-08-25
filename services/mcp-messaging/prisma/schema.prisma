@@ -1,0 +1,76 @@
+// OpenTeams — mcp-messaging data model (owns its own database: openteams_messaging)
+// Channel/workspace membership is NOT duplicated here — access is verified via
+// the internal API of mcp-auth-workspace (single source of truth for RBAC).
+
+generator client {
+  provider = "prisma-client-js"
+  // Per-service output avoids the pnpm shared-store clash between services.
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tag {
+  DECISION
+  ACTION_ITEM
+  NOTE
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  channelId   String
+  workspaceId String
+  authorId    String
+  parentId    String?
+
+  parent      Message?  @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Message[] @relation("Thread")
+
+  // Content: exactly one representation is set (enforced at the tool layer).
+  // Metadata (tag, sender, timestamps) stays unencrypted by design.
+  body        String? // plaintext when E2EE is off
+  ciphertext  String? // base64 AES-256-GCM payload when E2EE is on
+  iv          String?
+  authTag     String?
+
+  tag         Tag?
+  referenceId String?
+  assigneeId  String?
+
+  createdAt   DateTime  @default(now())
+  editedAt    DateTime?
+  deletedAt   DateTime?
+
+  reactions Reaction[]
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([parentId])
+  @@index([authorId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model ReadReceipt {
+  id                String   @id @default(cuid())
+  channelId         String
+  userId            String
+  lastReadMessageId String?
+  lastReadAt        DateTime @default(now()) @updatedAt
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}

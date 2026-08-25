@@ -1,0 +1,31 @@
+{
+  "name": "@openteams/mcp-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP protocol utilities: JSON-RPC 2.0 layer, tool registry, Fastify adapter and E2EE crypto primitives (X25519 + Double Ratchet KDF chain).",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "fastify": ">=5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "fastify": "^5.2.0",
+    "typescript": "^5.7.2"
+  }
+}

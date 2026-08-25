@@ -1,0 +1,39 @@
+// OpenTeams — mcp-storage data model (owns its own database: openteams_storage)
+// Channel/workspace access is NOT duplicated here — verified via the internal
+// API of mcp-auth-workspace (single source of truth for RBAC).
+// Object bytes live in S3/MinIO; only metadata is persisted here.
+
+generator client {
+  provider = "prisma-client-js"
+  // Per-service output avoids the pnpm shared-store clash between services.
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FileStatus {
+  PENDING
+  UPLOADED
+}
+
+model StoredFile {
+  id          String     @id @default(cuid())
+  workspaceId String
+  channelId   String
+  // S3 object key — globally unique, immutable once issued.
+  key         String     @unique
+  fileName    String
+  mimeType    String
+  size        Int
+  status      FileStatus @default(PENDING)
+  uploaderId  String
+
+  createdAt DateTime @default(now())
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([workspaceId])
+  @@index([uploaderId])
+}

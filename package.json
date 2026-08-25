@@ -1,0 +1,25 @@
+{
+  "name": "openteams",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Enterprise-grade open-source alternative to Microsoft Teams. Modular microservices monorepo powered by MCP servers with E2EE support.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "dev:auth": "turbo run dev --filter=@openteams/mcp-auth-workspace",
+    "dev:messaging": "turbo run dev --filter=@openteams/mcp-messaging",
+    "db:migrate": "turbo run db:migrate --filter=@openteams/mcp-auth-workspace",
+    "db:push": "turbo run db:push",
+    "db:generate": "turbo run db:generate",
+    "gen:keys": "node services/mcp-auth-workspace/scripts/generate-keys.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

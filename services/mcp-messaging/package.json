@@ -1,0 +1,35 @@
+{
+  "name": "@openteams/mcp-messaging",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server: real-time chat, WebSockets, tagged messages, threading, reactions and read receipts.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/generated','dist/generated',{recursive:true})\"",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.0.1",
+    "@openteams/mcp-core": "workspace:*",
+    "@openteams/shared-types": "workspace:*",
+    "@prisma/client": "^6.2.1",
+    "fastify": "^5.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "pino-pretty": "^13.0.0",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

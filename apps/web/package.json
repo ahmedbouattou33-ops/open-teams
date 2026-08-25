@@ -1,0 +1,10 @@
+{
+  "name": "@openteams/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenTeams web client (Next.js 14 App Router). Implemented in Phase 5.",
+  "scripts": {
+    "build": "echo 'Phase 5: not yet implemented'",
+    "typecheck": "echo 'Phase 5: not yet implemented'"
+  }
+}
