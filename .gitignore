@@ -8,3 +8,7 @@ dist/
 **/keys/*.pem
 services/*/prisma/dev.db
 coverage/
+
+# Security — secrets outside repo
+openteams-secrets/
+
