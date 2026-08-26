@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2b3342 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #2b3342;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .input-dark {
+    @apply w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-accent focus:outline-none;
+  }
+}
+
+.hljs {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body pre {
+  @apply my-2 overflow-x-auto rounded-lg border border-surface-border bg-black/40 p-3 text-sm;
+}
+
+.markdown-body code:not(pre code) {
+  @apply rounded bg-black/40 px-1.5 py-0.5 font-mono text-[13px] text-amber-300;
+}
+
+.markdown-body p {
+  @apply my-1 leading-relaxed;
+}
+
+.markdown-body p:first-child {
+  @apply mt-0;
+}
+
+.markdown-body p:last-child {
+  @apply mb-0;
+}
+
+.markdown-body ul {
+  @apply my-1 list-disc space-y-0.5 pl-5;
+}
+
+.markdown-body ol {
+  @apply my-1 list-decimal space-y-0.5 pl-5;
+}
+
+.markdown-body blockquote {
+  @apply my-1 border-l-4 border-accent-muted pl-3 text-slate-400;
+}
+
+.markdown-body table {
+  @apply my-2 w-full border-collapse text-sm;
+}
+
+.markdown-body th,
+.markdown-body td {
+  @apply border border-surface-border px-2 py-1 text-left;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  @apply mb-1 mt-3 font-bold;
+}
+
+.markdown-body h1:first-child,
+.markdown-body h2:first-child,
+.markdown-body h3:first-child {
+  @apply mt-0;
+}

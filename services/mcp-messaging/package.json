@@ -14,6 +14,7 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.0",
     "@fastify/websocket": "^11.0.1",
     "@openteams/mcp-core": "workspace:*",
     "@openteams/shared-types": "workspace:*",

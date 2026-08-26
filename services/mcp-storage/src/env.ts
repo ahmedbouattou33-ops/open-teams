@@ -11,10 +11,16 @@ const EnvSchema = z.object({
   AUTH_SERVICE_URL: z.string().url().default("http://localhost:4001"),
   INTERNAL_API_KEY: z.string().min(16),
   S3_ENDPOINT: z.string().url(),
-  S3_REGION: z.string().min(1),
+  S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
   S3_BUCKET_NAME: z.string().min(1).regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, "Invalid S3 bucket name"),
+  S3_FORCE_PATH_STYLE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(true),
+  /** Browser origins allowed by CORS (comma-separated). */
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim())),
 });
 
 export type AppEnv = Readonly<

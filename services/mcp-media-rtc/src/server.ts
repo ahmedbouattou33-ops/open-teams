@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import type { AppEnv } from "./env.js";
 import { verifyAccessToken } from "./auth/jwt.js";
 import { registerMcpEndpoint } from "@openteams/mcp-core";
@@ -39,7 +40,7 @@ function snapshot(call: ActiveCall) {
   }));
 }
 
-export function createServer(env: AppEnv): ServerHandle {
+export async function createServer(env: AppEnv): Promise<ServerHandle> {
   const app = Fastify({
     logger: {
       level: env.NODE_ENV === "development" ? "debug" : "info",
@@ -53,6 +54,13 @@ export function createServer(env: AppEnv): ServerHandle {
   const authClient = new AuthWorkspaceClient(env);
   const roomManager = new RoomManager();
 
+  await app.register(cors, {
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "mcp-session-id", "mcp-protocol-version"],
+    exposedHeaders: ["mcp-session-id"],
+  });
   const registry = buildToolRegistry(authClient, roomManager);
   registerMcpEndpoint(app, registry, { path: "/mcp", authenticate: authenticateFactory(env) });
 

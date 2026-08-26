@@ -9,6 +9,11 @@ const EnvSchema = z.object({
   JWT_ISSUER: z.string().default("openteams:mcp-auth-workspace"),
   AUTH_SERVICE_URL: z.string().url().default("http://localhost:4001"),
   INTERNAL_API_KEY: z.string().min(16),
+  /** Browser origins allowed by CORS (comma-separated). */
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim())),
 });
 
 export type AppEnv = Readonly<

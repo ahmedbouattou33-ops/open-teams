@@ -13,6 +13,11 @@ const EnvSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   /** Shared secret for service-to-service calls; internal API disabled when unset. */
   INTERNAL_API_KEY: z.string().min(16).optional(),
+  /** Browser origin allowed to call the MCP endpoint (comma-separated for multiple). */
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim())),
 });
 
 export type AppEnv = Readonly<

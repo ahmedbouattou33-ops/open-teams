@@ -1,9 +1,9 @@
 {
   "name": "@openteams/mcp-storage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "MCP server: S3/MinIO-compatible file vault — presigned uploads/downloads, attachment metadata persistence.",
+  "description": "MCP server: S3-compatible file storage, presigned uploads/downloads, channel file vault.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/generated','dist/generated',{recursive:true})\"",
@@ -14,8 +14,9 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.712.0",
-    "@aws-sdk/s3-request-presigner": "^3.712.0",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@fastify/cors": "^11.3.0",
     "@openteams/mcp-core": "workspace:*",
     "@openteams/shared-types": "workspace:*",
     "@prisma/client": "^6.2.1",

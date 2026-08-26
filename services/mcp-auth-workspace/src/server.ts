@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import { registerMcpEndpoint } from "@openteams/mcp-core";
 import { prisma } from "./db.js";
 import type { AppEnv } from "./env.js";
@@ -14,7 +15,7 @@ export interface ServerHandle {
   close(): Promise<void>;
 }
 
-export function createServer(env: AppEnv): ServerHandle {
+export async function createServer(env: AppEnv): Promise<ServerHandle> {
   const app = Fastify({
     logger: {
       level: env.NODE_ENV === "development" ? "debug" : "info",
@@ -26,6 +27,13 @@ export function createServer(env: AppEnv): ServerHandle {
   });
 
   const registry = buildToolRegistry(env, prisma);
+  await app.register(cors, {
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "mcp-session-id", "mcp-protocol-version"],
+    exposedHeaders: ["mcp-session-id"],
+  });
   registerMcpEndpoint(app, registry, { path: "/mcp", authenticate: authenticateFactory(env) });
   registerInternalRoutes(app, prisma, env.INTERNAL_API_KEY);
 
