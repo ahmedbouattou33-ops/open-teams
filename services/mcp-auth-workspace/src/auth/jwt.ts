@@ -11,6 +11,7 @@ export function signAccessToken(claims: AccessTokenClaims, env: AppEnv): string 
   const options: SignOptions = {
     algorithm: "RS256",
     issuer: env.JWT_ISSUER,
+    audience: env.JWT_AUDIENCE,
     expiresIn: env.JWT_ACCESS_TTL as SignOptions["expiresIn"],
   };
   return jwt.sign({ email: claims.email, displayName: claims.displayName }, env.accessPrivateKeyPem, {
@@ -24,6 +25,7 @@ export function verifyAccessToken(token: string, env: AppEnv): AccessTokenClaims
     const payload = jwt.verify(token, env.accessPublicKeyPem, {
       algorithms: ["RS256"],
       issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
     });
     if (typeof payload === "string" || typeof payload.sub !== "string") return null;
     return {

@@ -103,10 +103,13 @@ export function buildMediaTools(authClient: AuthWorkspaceClient, roomManager: Ro
       input: GetActiveCallsInputSchema,
       secure: true,
       handler: async (input: GetActiveCallsInput, ctx: AuthContext) => {
-        void ctx;
+        const userId = ctx.userId as string;
         const calls = roomManager.getWorkspaceCalls(input.workspaceId, input.channelId);
+        const accessibleChannelIds = input.channelId
+          ? (await requireAccess(authClient, input.channelId, userId), [input.channelId])
+          : await authClient.listAccessibleChannels(userId);
         return {
-          calls: calls.map(
+          calls: calls.filter((call) => accessibleChannelIds.includes(call.channelId)).map(
             (c): ActiveCallSummary => ({
               id: c.id,
               workspaceId: c.workspaceId,

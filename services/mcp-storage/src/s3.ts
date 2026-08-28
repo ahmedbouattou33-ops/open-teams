@@ -18,6 +18,7 @@ export interface StorageBackend {
   ensureBucket(): Promise<void>;
   presignPut(key: string, mimeType: string): Promise<string>;
   presignGet(key: string): Promise<string>;
+  putObject(key: string, body: Buffer, mimeType: string): Promise<void>;
   objectExists(key: string): Promise<{ exists: boolean; size: number | null }>;
 }
 
@@ -26,6 +27,12 @@ export function createStorageBackend(env: AppEnv): StorageBackend {
   const client = new S3Client({
     region: env.S3_REGION,
     endpoint: env.S3_ENDPOINT,
+    forcePathStyle: env.S3_FORCE_PATH_STYLE,
+    credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
+  });
+  const publicSigningClient = new S3Client({
+    region: env.S3_REGION,
+    endpoint: env.S3_PUBLIC_ENDPOINT,
     forcePathStyle: env.S3_FORCE_PATH_STYLE,
     credentials: { accessKeyId: env.S3_ACCESS_KEY, secretAccessKey: env.S3_SECRET_KEY },
   });
@@ -49,12 +56,16 @@ export function createStorageBackend(env: AppEnv): StorageBackend {
         Key: key,
         ContentType: mimeType,
       });
-      return getSignedUrl(client, command, { expiresIn: PRESIGN_EXPIRES_SECONDS });
+      return getSignedUrl(publicSigningClient, command, { expiresIn: PRESIGN_EXPIRES_SECONDS });
     },
 
     async presignGet(key): Promise<string> {
       const command = new GetObjectCommand({ Bucket: env.S3_BUCKET_NAME, Key: key });
-      return getSignedUrl(client, command, { expiresIn: PRESIGN_EXPIRES_SECONDS });
+      return getSignedUrl(publicSigningClient, command, { expiresIn: PRESIGN_EXPIRES_SECONDS });
+    },
+
+    async putObject(key, body, mimeType): Promise<void> {
+      await client.send(new PutObjectCommand({ Bucket: env.S3_BUCKET_NAME, Key: key, Body: body, ContentType: mimeType }));
     },
 
     async objectExists(key): Promise<{ exists: boolean; size: number | null }> {

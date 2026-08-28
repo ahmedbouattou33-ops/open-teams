@@ -30,12 +30,12 @@ export function registerSocketRoute(
     }
     const userId = claims.sub;
 
-    void authClient
-      .listAccessibleChannels(userId)
-      .then((channelIds) => {
+    void Promise.all([authClient.listAccessibleChannels(userId), authClient.listAccessibleWorkspaces(userId)])
+      .then(([channelIds, workspaceIds]) => {
         if (socket.readyState !== socket.OPEN) return;
-        const client = hub.register(socket, userId, channelIds);
+        const client = hub.register(socket, userId, channelIds, workspaceIds);
         safeSend(socket, JSON.stringify({ type: "ready", userId, channelIds }));
+        for (const workspaceId of workspaceIds) hub.broadcastWorkspace(workspaceId, { type: "presence.updated", workspaceId, userId, status: "ONLINE" });
 
         const heartbeat = setInterval(() => {
           if (socket.readyState === socket.OPEN) {
@@ -45,23 +45,35 @@ export function registerSocketRoute(
           }
         }, HEARTBEAT_MS);
 
+        let lastTypingAt = 0;
         socket.on("message", (data) => {
-          // Client frames are control hints only; data flows through POST /mcp.
-          const frame = decodeFrame(data);
-          const channelId = (frame as unknown as { channelId?: unknown })?.channelId;
+          // Client frames are control hints only; message data flows through POST /mcp.
+          const frame = decodeFrame(data) as { type: string; channelId?: unknown; active?: unknown } | null;
+          const channelId = frame?.channelId;
           if (frame?.type === "join" && typeof channelId === "string") {
             hub.join(client, channelId);
+            return;
+          }
+          if (frame?.type === "typing" && typeof channelId === "string" && typeof frame.active === "boolean") {
+            const now = Date.now();
+            if (now - lastTypingAt < 300 || !hub.canPublish(client, channelId)) return;
+            lastTypingAt = now;
+            hub.broadcast(channelId, { type: "typing", channelId, userId, active: frame.active });
           }
         });
 
+        const unregisterAndBroadcast = () => {
+          hub.unregister(client);
+          if (!hub.hasUserConnection(userId)) for (const workspaceId of workspaceIds) hub.broadcastWorkspace(workspaceId, { type: "presence.updated", workspaceId, userId, status: "OFFLINE" });
+        };
         socket.on("close", () => {
           clearInterval(heartbeat);
-          hub.unregister(client);
+          unregisterAndBroadcast();
         });
 
         socket.on("error", () => {
           clearInterval(heartbeat);
-          hub.unregister(client);
+          unregisterAndBroadcast();
         });
       })
       .catch(() => socket.close(1011, "Failed to resolve channel memberships"));

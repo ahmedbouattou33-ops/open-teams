@@ -1,0 +1,7 @@
+OpenTeams verification checkpoint
+Wed Aug 26 22:53:41 UTC 2026
+static-audit: PASS
+jwt-unit-proof: PASS 4/4
+typecheck: PASS 10/10
+runtime-security: BLOCKED (Docker/auth unavailable)
+dependency-audit: FAIL (1 High: deepmerge-ts@7.1.5 via Prisma 6.19.3)

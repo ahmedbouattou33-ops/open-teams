@@ -18,6 +18,8 @@ interface MessagesState {
   loadHistory: (channelId: string) => Promise<void>;
   loadOlder: (channelId: string) => Promise<void>;
   receiveMessage: (message: MessageDTO) => void;
+  applyEditedMessage: (message: MessageDTO) => void;
+  removeMessage: (channelId: string, messageId: string) => void;
   applyReactions: (
     channelId: string,
     messageId: string,
@@ -86,6 +88,31 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         messagesByChannel: {
           ...state.messagesByChannel,
           [message.channelId]: sortMessages([...existing, message]),
+        },
+      };
+    });
+  },
+
+  applyEditedMessage: (message) => {
+    set((state) => ({
+      messagesByChannel: {
+        ...state.messagesByChannel,
+        [message.channelId]: (state.messagesByChannel[message.channelId] ?? []).map((item) =>
+          item.id === message.id ? message : item,
+        ),
+      },
+    }));
+  },
+
+  removeMessage: (channelId, messageId) => {
+    set((state) => {
+      const nextExpiry = { ...state.expiryByMessageId };
+      delete nextExpiry[messageId];
+      return {
+        expiryByMessageId: nextExpiry,
+        messagesByChannel: {
+          ...state.messagesByChannel,
+          [channelId]: (state.messagesByChannel[channelId] ?? []).filter((item) => item.id !== messageId),
         },
       };
     });

@@ -1,0 +1,16 @@
+{
+  "account": "Compte",
+  "profilePreferences": "Profil et préférences",
+  "sessionSecurity": "Sécurité de la session",
+  "preferences": "Préférences",
+  "language": "Langue",
+  "workspaceCommandCenter": "Centre de commande de l’espace",
+  "quickActions": "Actions rapides",
+  "actionItems": "Actions à suivre",
+  "decisions": "Décisions",
+  "upcomingAgenda": "Agenda à venir",
+  "activityFeed": "Fil d’activité",
+  "members": "Membres",
+  "channels": "Canaux",
+  "directMessages": "Messages directs"
+}

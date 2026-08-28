@@ -1,0 +1,46 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { MoreHorizontal, RefreshCw, Search, Shield, UserPlus, UserRound, MessageSquare, LogOut, Trash2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useUiStore } from "@/stores/ui";
+import { useWorkspaceStore } from "@/stores/workspace";
+import { avatarColor, initials } from "@/lib/utils";
+
+const EMPTY_PRESENCE: Readonly<Record<string, string>> = {};
+
+type Member = Awaited<ReturnType<typeof api.listMembers>>["items"][number];
+
+export default function UsersDirectory() {
+  const workspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const setAddMemberOpen = useUiStore((s) => s.setAddMemberOpen);
+  const presence = useUiStore((s) => workspaceId ? s.presenceByWorkspace[workspaceId] ?? EMPTY_PRESENCE : EMPTY_PRESENCE);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Member | null>(null);
+
+  const load = useCallback(async () => {
+    if (!workspaceId) return;
+    setBusy(true); setError(null);
+    try { const result = await api.listMembers(workspaceId, { search: search || undefined, role: role || undefined, status: status || undefined }); setMembers(result.items); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load workspace users"); }
+    finally { setBusy(false); }
+  }, [workspaceId, search, role, status]);
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 250); return () => window.clearTimeout(timer); }, [load]);
+
+  async function remove(member: Member) { if (!workspaceId || member.role === "OWNER" || !window.confirm(`Remove ${member.displayName} from this workspace?`)) return; setBusy(true); try { await api.removeMemberRest(workspaceId, member.userId); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to remove member"); } finally { setBusy(false); } }
+  async function revoke(member: Member) { if (!workspaceId || !window.confirm(`Force logout ${member.displayName}?`)) return; setBusy(true); try { await api.revokeMemberSessions(workspaceId, member.userId); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to revoke sessions"); } finally { setBusy(false); } }
+  async function saveRole(member: Member, nextRole: "ADMIN" | "MEMBER" | "GUEST") { if (!workspaceId) return; setBusy(true); try { await api.updateMemberRoleRest(workspaceId, member.userId, nextRole); setEditing(null); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to update role"); } finally { setBusy(false); } }
+
+  return <main className="min-h-screen overflow-y-auto bg-surface p-4 text-slate-900 dark:text-slate-100 sm:p-8"><header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Workspace governance</p><h1 className="mt-2 text-3xl font-bold">All Users</h1><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage workspace members, access roles and active sessions.</p></div><button type="button" onClick={() => setAddMemberOpen(true)} className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"><UserPlus className="h-4 w-4" />Add New User / Invite</button></header>
+    <section className="mx-auto mt-8 max-w-7xl rounded-2xl border border-surface-border bg-surface-raised p-4"><div className="flex flex-wrap gap-2"><label className="relative min-w-[240px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input aria-label="Search users" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or department" className="w-full rounded-xl border border-surface-border bg-surface py-2 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-accent dark:text-white" /></label><select aria-label="Filter by role" value={role} onChange={(e) => setRole(e.target.value)} className="rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm text-slate-800 dark:text-slate-200"><option value="">All roles</option><option value="ADMIN">Admin</option><option value="MEMBER">Member</option><option value="GUEST">Guest</option></select><select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm text-slate-800 dark:text-slate-200"><option value="">All status</option><option value="ONLINE">Online</option><option value="OFFLINE">Offline</option><option value="AWAY">Away</option></select><button type="button" title="Refresh users" onClick={() => void load()} className="rounded-xl border border-surface-border p-2 text-slate-500 hover:bg-surface-hover"><RefreshCw className={busy ? "h-4 w-4 animate-spin" : "h-4 w-4"} /></button></div>
+      {error ? <p role="alert" className="mt-4 rounded-xl bg-rose-500/10 p-3 text-sm text-rose-500">{error}</p> : null}
+      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-3 py-3">User</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Department / Team</th><th className="px-3 py-3 text-right">Actions</th></tr></thead><tbody>{members.map((member) => <tr key={member.userId} className="border-t border-surface-border"><td className="px-3 py-3"><div className="flex items-center gap-3"><div className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white ${avatarColor(member.userId)}`}>{initials(member.displayName)}</div><span className="font-medium">{member.displayName}</span></div></td><td className="px-3 py-3"><span className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${(presence[member.userId] ?? member.status) === "ONLINE" ? "bg-emerald-500" : (presence[member.userId] ?? member.status) === "AWAY" ? "bg-amber-500" : "bg-slate-400"}`} />{presence[member.userId] ?? member.status}</span></td><td className="px-3 py-3"><span className="rounded-lg bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">{member.role}</span></td><td className="px-3 py-3 text-slate-500 dark:text-slate-400">{member.email}</td><td className="px-3 py-3 text-slate-500 dark:text-slate-400">{member.department ?? "Unassigned"}</td><td className="px-3 py-3 text-right"><div className="flex justify-end gap-1"><button type="button" title="Send direct message" className="rounded-lg p-2 text-slate-500 hover:bg-surface-hover"><MessageSquare className="h-4 w-4" /></button><button type="button" title="Member actions" onClick={() => setEditing(member)} className="rounded-lg p-2 text-slate-500 hover:bg-surface-hover"><MoreHorizontal className="h-4 w-4" /></button></div></td></tr>)}</tbody></table>{!busy && members.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">No users match the current filters.</p> : null}</div></section>
+    {editing ? <MemberActions member={editing} onClose={() => setEditing(null)} onRole={(next) => void saveRole(editing, next)} onRevoke={() => void revoke(editing)} onRemove={() => void remove(editing)} /> : null}
+  </main>;
+}
+function MemberActions({ member, onClose, onRole, onRevoke, onRemove }: { member: Member; onClose: () => void; onRole: (role: "ADMIN" | "MEMBER" | "GUEST") => void; onRevoke: () => void; onRemove: () => void }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-sm rounded-2xl border border-surface-border bg-surface-raised p-5 shadow-2xl"><div className="mb-4 flex items-center gap-3"><UserRound className="h-5 w-5 text-accent" /><div><h2 className="font-semibold">{member.displayName}</h2><p className="text-xs text-slate-500">{member.email}</p></div></div><label className="block text-sm">Change role<select defaultValue={member.role === "OWNER" ? "MEMBER" : member.role} disabled={member.role === "OWNER"} onChange={(e) => onRole(e.target.value as "ADMIN" | "MEMBER" | "GUEST")} className="mt-1 w-full rounded-xl border border-surface-border bg-surface p-2 text-sm"><option value="ADMIN">ADMIN</option><option value="MEMBER">MEMBER</option><option value="GUEST">GUEST</option></select></label><div className="mt-4 grid gap-2"><button type="button" onClick={onRevoke} className="flex items-center gap-2 rounded-xl border border-amber-500/30 px-3 py-2 text-sm text-amber-600"><LogOut className="h-4 w-4" />Force revoke sessions</button>{member.role !== "OWNER" ? <button type="button" onClick={onRemove} className="flex items-center gap-2 rounded-xl border border-rose-500/30 px-3 py-2 text-sm text-rose-500"><Trash2 className="h-4 w-4" />Remove from workspace</button> : null}</div><button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-surface px-3 py-2 text-sm text-slate-500 hover:bg-surface-hover">Close</button></div></div>; }

@@ -126,6 +126,99 @@ export const ListChannelsInputSchema = z.object({
 });
 export type ListChannelsInput = z.infer<typeof ListChannelsInputSchema>;
 
+export const AgendaVisibilitySchema = z.enum(["PRIVATE", "SHARED", "WORKSPACE"]);
+export type AgendaVisibility = z.infer<typeof AgendaVisibilitySchema>;
+export const AgendaPermissionSchema = z.enum(["VIEW", "EDIT"]);
+export type AgendaPermission = z.infer<typeof AgendaPermissionSchema>;
+
+export const CreateAgendaEventInputSchema = z.object({
+  title: z.string().min(1).max(200).trim(),
+  description: z.string().max(10_000).optional(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  timezone: z.string().min(1).max(80).default("UTC"),
+  visibility: AgendaVisibilitySchema.default("PRIVATE"),
+  workspaceId: z.string().min(1).optional(),
+  participantUserIds: z.array(z.string().min(1)).max(100).default([]),
+  participantPermission: AgendaPermissionSchema.default("VIEW"),
+}).refine((v) => new Date(v.endsAt).getTime() > new Date(v.startsAt).getTime(), {
+  message: "endsAt must be later than startsAt",
+  path: ["endsAt"],
+});
+export type CreateAgendaEventInput = z.infer<typeof CreateAgendaEventInputSchema>;
+
+export const ListAgendaEventsInputSchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  workspaceId: z.string().min(1).optional(),
+});
+export type ListAgendaEventsInput = z.infer<typeof ListAgendaEventsInputSchema>;
+
+export const CreateNoteInputSchema = z.object({
+  title: z.string().min(1).max(200).trim(),
+  content: z.string().max(100_000),
+  workspaceId: z.string().min(1).optional(),
+  eventId: z.string().min(1).optional(),
+  isPrivate: z.boolean().default(true),
+});
+export type CreateNoteInput = z.infer<typeof CreateNoteInputSchema>;
+
+export const ListNotesInputSchema = z.object({
+  workspaceId: z.string().min(1).optional(),
+  eventId: z.string().min(1).optional(),
+});
+export type ListNotesInput = z.infer<typeof ListNotesInputSchema>;
+
+export interface AgendaEventDTO {
+  id: string; ownerId: string; workspaceId: string | null; title: string;
+  description: string | null; startsAt: string; endsAt: string; timezone: string;
+  visibility: AgendaVisibility; participants: Array<{ userId: string; permission: AgendaPermission; accepted: boolean }>;
+}
+export interface WorkTaskDTO {
+  id: string; workspaceId: string; creatorId: string; assigneeId: string | null;
+  title: string; description: string | null; status: "BACKLOG" | "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; dueAt: string | null; createdAt: string; updatedAt: string;
+}
+export interface WorkspaceInviteDTO {
+  id: string; workspaceId: string; inviterUserId: string; inviteeEmail: string | null; role: "ADMIN" | "MEMBER" | "GUEST"; status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED"; maxUses: number | null; useCount: number; expiresAt: string; createdAt: string;
+}
+export interface WorkspaceMemberDTO { id: string; workspaceId: string; userId: string; displayName: string; email: string; role: "OWNER" | "ADMIN" | "MEMBER" | "GUEST"; status: "ONLINE" | "OFFLINE" | "AWAY" | "DND"; joinedAt: string; }
+export const CreateInviteInputSchema = z.object({ workspaceId: z.string().min(1), role: z.enum(["ADMIN", "MEMBER", "GUEST"]).default("MEMBER"), email: z.string().email().optional(), expiresInHours: z.number().int().min(1).max(8760).default(168), maxUses: z.number().int().min(1).optional(), channelIds: z.array(z.string().min(1)).max(100).default([]), directAdd: z.boolean().default(false) });
+export type CreateInviteInput = z.infer<typeof CreateInviteInputSchema>;
+export const AcceptInviteInputSchema = z.object({ code: z.string().min(20).max(200) });
+export type AcceptInviteInput = z.infer<typeof AcceptInviteInputSchema>;
+export const ListWorkspaceInvitesInputSchema = z.object({ workspaceId: z.string().min(1) });
+export type ListWorkspaceInvitesInput = z.infer<typeof ListWorkspaceInvitesInputSchema>;
+export const RevokeInviteInputSchema = z.object({ inviteId: z.string().min(1) });
+export type RevokeInviteInput = z.infer<typeof RevokeInviteInputSchema>;
+export const ListWorkspaceMembersInputSchema = z.object({ workspaceId: z.string().min(1) });
+export type ListWorkspaceMembersInput = z.infer<typeof ListWorkspaceMembersInputSchema>;
+export const UpdateMemberRoleInputSchema = z.object({ workspaceId: z.string().min(1), userId: z.string().min(1), role: z.enum(["ADMIN", "MEMBER", "GUEST"]) });
+export type UpdateMemberRoleInput = z.infer<typeof UpdateMemberRoleInputSchema>;
+export const RemoveMemberInputSchema = z.object({ workspaceId: z.string().min(1), userId: z.string().min(1) });
+export type RemoveMemberInput = z.infer<typeof RemoveMemberInputSchema>;
+
+export interface TeamToolDTO {
+  id: string; workspaceId: string; name: string; description: string | null; url: string | null; enabled: boolean; createdById: string;
+}
+export const CreateWorkTaskInputSchema = z.object({
+  workspaceId: z.string().min(1), title: z.string().min(1).max(200).trim(), description: z.string().max(10_000).optional(),
+  assigneeId: z.string().min(1).optional(), status: z.enum(["BACKLOG", "TODO", "IN_PROGRESS", "BLOCKED", "DONE"]).default("TODO"),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"), dueAt: z.string().datetime().optional(),
+});
+export type CreateWorkTaskInput = z.infer<typeof CreateWorkTaskInputSchema>;
+export const ListWorkTasksInputSchema = z.object({ workspaceId: z.string().min(1), status: z.enum(["BACKLOG", "TODO", "IN_PROGRESS", "BLOCKED", "DONE"]).optional() });
+export type ListWorkTasksInput = z.infer<typeof ListWorkTasksInputSchema>;
+export const CreateTeamToolInputSchema = z.object({ workspaceId: z.string().min(1), name: z.string().min(1).max(100).trim(), description: z.string().max(1000).optional(), url: z.string().url().optional() });
+export type CreateTeamToolInput = z.infer<typeof CreateTeamToolInputSchema>;
+export const ListTeamToolsInputSchema = z.object({ workspaceId: z.string().min(1) });
+export type ListTeamToolsInput = z.infer<typeof ListTeamToolsInputSchema>;
+
+export interface PersonalNoteDTO {
+  id: string; ownerId: string; workspaceId: string | null; eventId: string | null;
+  title: string; content: string; isPrivate: boolean; createdAt: string; updatedAt: string;
+}
+
 /* ---------- Practical enterprise contracts ---------- */
 
 /** Structured message tags used by mcp-messaging (Phase 2). */
@@ -192,6 +285,21 @@ export const ToolName = Object.freeze({
   GetUserWorkspaces: "get_user_workspaces",
   CreateChannel: "create_channel",
   ListChannels: "list_channels",
+  CreateAgendaEvent: "create_agenda_event",
+  ListAgendaEvents: "list_agenda_events",
+  CreateNote: "create_note",
+  ListNotes: "list_notes",
+  CreateWorkTask: "create_work_task",
+  ListWorkTasks: "list_work_tasks",
+  CreateTeamTool: "create_team_tool",
+  CreateInvite: "create_invite",
+  AcceptInvite: "accept_invite",
+  ListWorkspaceInvites: "list_workspace_invites",
+  RevokeInvite: "revoke_invite",
+  ListWorkspaceMembers: "list_workspace_members",
+  UpdateMemberRole: "update_member_role",
+  RemoveMember: "remove_member",
+  ListTeamTools: "list_team_tools",
 } as const);
 export type ToolName = (typeof ToolName)[keyof typeof ToolName];
 
@@ -202,8 +310,13 @@ export const MessagingToolName = Object.freeze({
   GetChannelHistory: "get_channel_history",
   MarkAsRead: "mark_as_read",
   AddReaction: "add_reaction",
+  EditMessage: "edit_message",
+  DeleteMessage: "delete_message",
 } as const);
 export type MessagingToolName = (typeof MessagingToolName)[keyof typeof MessagingToolName];
+
+export const TranslationLocaleSchema = z.enum(["en", "fr", "ar"]);
+export type TranslationLocale = z.infer<typeof TranslationLocaleSchema>;
 
 /** Message content is either plaintext or an E2EE AES-256-GCM envelope — never both. */
 export const MessageContentSchema = z.discriminatedUnion("type", [
@@ -252,6 +365,15 @@ export const SendMessageInputSchema = z.object({
   { message: "`assigneeId` requires `tag` = ACTION_ITEM" },
 );
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;
+
+export const EditMessageInputSchema = z.object({
+  messageId: z.string().min(1),
+  content: MessageContentSchema,
+});
+export type EditMessageInput = z.infer<typeof EditMessageInputSchema>;
+
+export const DeleteMessageInputSchema = z.object({ messageId: z.string().min(1) });
+export type DeleteMessageInput = z.infer<typeof DeleteMessageInputSchema>;
 
 export const GetChannelHistoryInputSchema = z.object({
   channelId: z.string().min(1),
@@ -316,6 +438,13 @@ export interface FileDTO {
   readonly status: FileStatus;
   readonly uploaderId: string;
   readonly createdAt: string;
+}
+
+export interface DirectUploadDTO {
+  readonly file: FileDTO;
+  readonly downloadUrl: string;
+  readonly previewUrl: string;
+  readonly expiresIn: number;
 }
 
 export const GenerateUploadUrlInputSchema = z.object({
@@ -461,7 +590,12 @@ export interface ActiveCall {
 
 export type MessagingSocketEvent =
   | { readonly type: "ready"; readonly userId: string; readonly channelIds: readonly string[] }
+  | { readonly type: "member.joined"; readonly workspaceId: string; readonly userId: string; readonly displayName: string; readonly email?: string; readonly role: "OWNER" | "ADMIN" | "MEMBER" | "GUEST"; readonly joinedAt: string }
+  | { readonly type: "presence.updated"; readonly workspaceId: string; readonly userId: string; readonly status: "ONLINE" | "OFFLINE" }
   | { readonly type: "message.created"; readonly message: MessageDTO }
+  | { readonly type: "message.edited"; readonly message: MessageDTO }
+  | { readonly type: "message.deleted"; readonly channelId: string; readonly messageId: string }
+  | { readonly type: "typing"; readonly channelId: string; readonly userId: string; readonly active: boolean }
   | {
       readonly type: "reaction.updated";
       readonly channelId: string;

@@ -1,5 +1,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import rateLimit from "@fastify/rate-limit";
 import type { AppEnv } from "./env.js";
 import { verifyAccessToken } from "./auth/jwt.js";
 import { registerMcpEndpoint } from "@openteams/mcp-core";
@@ -62,9 +65,24 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
     exposedHeaders: ["mcp-session-id"],
   });
   const registry = buildToolRegistry(authClient, roomManager);
+  await app.register(rateLimit, { max: env.NODE_ENV === "production" ? 120 : 600, timeWindow: "1 minute" });
+  await app.register(swagger, {
+    openapi: {
+      info: { title: "OpenTeams Media RTC API", version: "0.1.0" },
+      servers: [{ url: `http://localhost:${env.PORT}` }],
+      tags: [{ name: "system" }, { name: "media" }],
+    },
+  });
+  await app.register(swaggerUi, { routePrefix: "/docs" });
   registerMcpEndpoint(app, registry, { path: "/mcp", authenticate: authenticateFactory(env) });
 
   app.register(websocket);
+
+  const startedAt = Date.now();
+  app.get("/metrics", async (_request, reply) => {
+    reply.type("text/plain; version=0.0.4");
+    return `openteams_service_up{service="mcp-media-rtc"} 1\nopenteams_service_uptime_seconds{service="mcp-media-rtc"} ${Math.floor((Date.now() - startedAt) / 1000)}\nopenteams_active_calls ${roomManager.getAllCalls().length}\n`;
+  });
 
   app.get("/health", async () => {
     return {
@@ -83,20 +101,20 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
       const url = new URL(request.url, "http://localhost");
       const token = url.searchParams.get("token") ?? "";
       const callId = url.searchParams.get("callId") ?? "";
-  
+
       const claims = token ? verifyAccessToken(token, env) : null;
       if (!claims) {
         socket.close(4401, "Unauthorized: missing or invalid access token");
         return;
       }
       const userId = claims.sub;
-  
+
       const call = roomManager.getCall(callId);
       if (!call) {
         socket.close(4404, "Unknown call");
         return;
       }
-  
+
       // Verify channel access before admitting the peer.
       void authClient
         .getChannelAccess(call.channelId, userId)
@@ -106,19 +124,19 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
             return;
           }
           if (socket.readyState !== socket.OPEN) return;
-  
+
           roomManager.addParticipant(call.id, userId, socket);
-  
+
           for (const [pid, p] of call.participants) {
             if (pid !== userId) safeSend(p.socket, JSON.stringify({ type: "peer-joined", userId }));
           }
           safeSend(socket, JSON.stringify({ type: "ready", callId: call.id, userId, participants: snapshot(call) }));
-  
+
           const heartbeat = setInterval(() => {
             if (socket.readyState === socket.OPEN) socket.ping();
             else clearInterval(heartbeat);
           }, 30_000);
-  
+
           socket.on("message", (data) => {
             let raw: unknown;
             try {
@@ -130,7 +148,7 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
             const parsed = WebRTCSignalingFrameSchema.safeParse(raw);
             if (!parsed.success) return;
             const frame = parsed.data;
-  
+
             if (frame.type === "media-state") {
               const participant = call.participants.get(userId);
               if (participant) {
@@ -139,7 +157,7 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
                 participant.screenSharing = frame.payload.screenSharing;
               }
             }
-  
+
             const envelope = JSON.stringify({ type: frame.type, fromUserId: userId, payload: frame.payload });
             const target = frame.targetUserId ? call.participants.get(frame.targetUserId) : undefined;
             if (target) {
@@ -150,7 +168,7 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
               }
             }
           });
-  
+
           const leave = () => {
             clearInterval(heartbeat);
             const removed = roomManager.removeParticipant(call.id, userId);
@@ -162,7 +180,7 @@ export async function createServer(env: AppEnv): Promise<ServerHandle> {
               }
             }
           };
-  
+
           socket.on("close", leave);
           socket.on("error", leave);
         })

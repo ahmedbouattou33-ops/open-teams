@@ -34,6 +34,15 @@ export function registerInternalRoutes(app: FastifyInstance, prisma: PrismaClien
     },
   );
 
+  /** Workspace IDs a user can currently access for workspace-scoped realtime events. */
+  app.get<{ Params: { userId: string } }>("/internal/users/:userId/workspaces", async (request) => {
+    const memberships = await prisma.workspaceMember.findMany({
+      where: { userId: request.params.userId },
+      select: { workspaceId: true },
+    });
+    return { workspaceIds: memberships.map((membership) => membership.workspaceId) };
+  });
+
   /** All channel IDs a user can currently reach (for socket room subscription). */
   app.get<{ Params: { userId: string } }>("/internal/users/:userId/channels", async (request) => {
     const memberships = await prisma.channelMember.findMany({

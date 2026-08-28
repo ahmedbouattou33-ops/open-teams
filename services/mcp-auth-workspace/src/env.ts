@@ -10,9 +10,11 @@ const EnvSchema = z.object({
   JWT_ACCESS_PUBLIC_KEY_PATH: z.string().min(1),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_ISSUER: z.string().default("openteams:mcp-auth-workspace"),
+  JWT_AUDIENCE: z.string().default("openteams-api"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   /** Shared secret for service-to-service calls; internal API disabled when unset. */
   INTERNAL_API_KEY: z.string().min(16).optional(),
+  REDIS_URL: z.string().url().default("redis://localhost:6379"),
   /** Browser origin allowed to call the MCP endpoint (comma-separated for multiple). */
   CORS_ORIGIN: z
     .string()

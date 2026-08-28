@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Loader2,
   Mic,
@@ -9,6 +9,7 @@ import {
   PhoneOff,
   Video as VideoIcon,
   VideoOff,
+  Hand,
 } from "lucide-react";
 import { avatarColor, cn, initials } from "@/lib/utils";
 import { useCallSession } from "@/hooks/use-call-session";
@@ -20,6 +21,7 @@ export default function CallLayer() {
   const endCall = useUiStore((s) => s.endCall);
   const selfId = useAuthStore((s) => s.user?.id ?? "");
   const { state, start, leave, toggleMic, toggleCam, toggleScreenShare } = useCallSession();
+  const [handRaised, setHandRaised] = useState(false);
 
   useEffect(() => {
     if (pendingCall && state.phase === "idle" && !state.error && state.callId === null) {
@@ -109,7 +111,10 @@ export default function CallLayer() {
             {state.camOff ? <VideoOff className="h-4 w-4" /> : <VideoIcon className="h-4 w-4" />}
           </ControlButton>
         ) : null}
-        <ControlButton
+          <ControlButton title={handRaised ? "Lower hand" : "Raise hand"} onClick={() => setHandRaised((value) => !value)} active={handRaised}>
+            <Hand className="h-4 w-4" />
+          </ControlButton>
+          <ControlButton
           title={state.screenSharing ? "Stop screen share" : "Share your screen"}
           onClick={() => void toggleScreenShare()}
           active={state.screenSharing}

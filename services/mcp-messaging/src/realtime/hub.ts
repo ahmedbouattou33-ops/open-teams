@@ -5,6 +5,7 @@ interface ConnectedClient {
   readonly socket: WebSocket;
   readonly userId: string;
   readonly channels: Set<string>;
+  readonly workspaces: Set<string>;
 }
 
 /**
@@ -22,8 +23,12 @@ export class RealtimeHub {
     return n;
   }
 
-  register(socket: WebSocket, userId: string, channelIds: readonly string[]): ConnectedClient {
-    const client: ConnectedClient = { socket, userId, channels: new Set(channelIds) };
+  hasUserConnection(userId: string): boolean {
+    return (this.#byUser.get(userId)?.size ?? 0) > 0;
+  }
+
+  register(socket: WebSocket, userId: string, channelIds: readonly string[], workspaceIds: readonly string[] = []): ConnectedClient {
+    const client: ConnectedClient = { socket, userId, channels: new Set(channelIds), workspaces: new Set(workspaceIds) };
     this.#addTo(this.#byUser, userId, client);
     for (const channelId of client.channels) this.#addTo(this.#byChannel, channelId, client);
     return client;
@@ -44,6 +49,11 @@ export class RealtimeHub {
     }
   }
 
+  /** Returns whether this authenticated connection is allowed to publish to the channel. */
+  canPublish(client: ConnectedClient, channelId: string): boolean {
+    return client.channels.has(channelId);
+  }
+
   /** Subscribes an existing connection to a newly joined channel. */
   join(client: ConnectedClient, channelId: string): void {
     if (!client.channels.add(channelId)) return;
@@ -53,6 +63,15 @@ export class RealtimeHub {
   broadcast(channelId: string, event: MessagingSocketEvent): void {
     const payload = serialize(event);
     for (const client of this.#byChannel.get(channelId) ?? []) safeSend(client.socket, payload);
+  }
+
+  broadcastWorkspace(workspaceId: string, event: MessagingSocketEvent): void {
+    const payload = serialize(event);
+    for (const clients of this.#byUser.values()) {
+      for (const client of clients) {
+        if (client.workspaces.has(workspaceId)) safeSend(client.socket, payload);
+      }
+    }
   }
 
   sendToUser(userId: string, event: MessagingSocketEvent): void {

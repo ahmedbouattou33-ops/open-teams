@@ -2,10 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --surface: 248 250 252;
+  --surface-raised: 255 255 255;
+  --surface-overlay: 241 245 249;
+  --surface-hover: 226 232 240;
+  --surface-border: 203 213 225;
+  --accent: 79 70 229;
+  --accent-hover: 67 56 202;
+  --accent-muted: 224 231 255;
+}
+
+.dark {
+  --surface: 11 13 16;
+  --surface-raised: 17 20 26;
+  --surface-overlay: 23 27 35;
+  --surface-hover: 29 34 44;
+  --surface-border: 36 42 54;
+  --accent: 91 108 255;
+  --accent-hover: 111 128 255;
+  --accent-muted: 44 53 95;
+}
+
 @layer base {
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2b3342 transparent;
+    scrollbar-color: rgb(var(--surface-border) / 1) transparent;
+  }
+
+  body {
+    background: rgb(var(--surface) / 1);
+    color: rgb(15 23 42 / 1);
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  .dark body {
+    color: rgb(226 232 240 / 1);
   }
 
   ::-webkit-scrollbar {
@@ -14,7 +46,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: #2b3342;
+    background-color: rgb(var(--surface-border) / 1);
     border-radius: 9999px;
   }
 
@@ -29,7 +61,7 @@
   }
 
   .input-dark {
-    @apply w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-accent focus:outline-none;
+    @apply w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-accent focus:outline-none dark:text-slate-200;
   }
 }
 

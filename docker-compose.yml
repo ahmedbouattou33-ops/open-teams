@@ -1,0 +1,238 @@
+name: openteams
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openteams}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
+      POSTGRES_DB: ${POSTGRES_DB:-openteams}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: auth
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openteams}:${POSTGRES_PASSWORD:-change-this-password}@postgres:5432/${POSTGRES_DB:-openteams}?schema=public
+      JWT_ACCESS_PRIVATE_KEY_PATH: ./keys/access-private.pem
+      JWT_ACCESS_PUBLIC_KEY_PATH: ./keys/access-public.pem
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_ISSUER: ${JWT_ISSUER:-openteams:mcp-auth-workspace}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-openteams-api}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-this-internal-key}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "pnpm --filter @openteams/mcp-auth-workspace db:push && pnpm --filter @openteams/mcp-auth-workspace start"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  messaging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: messaging
+    environment:
+      NODE_ENV: production
+      PORT: 4002
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openteams}:${POSTGRES_PASSWORD:-change-this-password}@postgres:5432/${POSTGRES_DB:-openteams}?schema=messaging
+      JWT_ACCESS_PUBLIC_KEY_PATH: ./keys/access-public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-openteams:mcp-auth-workspace}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-openteams-api}
+      AUTH_SERVICE_URL: http://auth:4001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-this-internal-key}
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4002:4002"
+    depends_on:
+      auth:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "pnpm --filter @openteams/mcp-messaging db:push && pnpm --filter @openteams/mcp-messaging start"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  rtc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: rtc
+    environment:
+      NODE_ENV: production
+      PORT: 4003
+      JWT_ACCESS_PUBLIC_KEY_PATH: ./keys/access-public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-openteams:mcp-auth-workspace}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-openteams-api}
+      AUTH_SERVICE_URL: http://auth:4001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-this-internal-key}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4003:4003"
+    depends_on:
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  storage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: storage
+    environment:
+      NODE_ENV: production
+      PORT: 4004
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openteams}:${POSTGRES_PASSWORD:-change-this-password}@postgres:5432/${POSTGRES_DB:-openteams}?schema=storage
+      JWT_ACCESS_PUBLIC_KEY_PATH: ./keys/access-public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-openteams:mcp-auth-workspace}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-openteams-api}
+      AUTH_SERVICE_URL: http://auth:4001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-this-internal-key}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-openteams-files}
+    ports:
+      - "4004:4004"
+    depends_on:
+      auth:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: ["sh", "-c", "pnpm --filter @openteams/mcp-storage db:push && pnpm --filter @openteams/mcp-storage start"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  ai-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: ai
+    environment:
+      NODE_ENV: production
+      PORT: 4005
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:1234/v1}
+      LLM_MODEL: ${LLM_MODEL:-local-model}
+      WHISPER_URL: ${WHISPER_URL:-http://whisper:8080}
+    ports:
+      - "4005:4005"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP: web
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_AUTH_URL: http://localhost:4001
+      NEXT_PUBLIC_MESSAGING_URL: http://localhost:4002
+      NEXT_PUBLIC_MEDIA_RTC_URL: http://localhost:4003
+      NEXT_PUBLIC_STORAGE_SERVICE_URL: http://localhost:4004
+      NEXT_PUBLIC_STORAGE_URL: http://localhost:4004
+      NEXT_PUBLIC_MINIO_URL: http://localhost:9000
+    ports:
+      - "3000:3000"
+    depends_on:
+      auth:
+        condition: service_healthy
+      messaging:
+        condition: service_healthy
+      rtc:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      ai-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

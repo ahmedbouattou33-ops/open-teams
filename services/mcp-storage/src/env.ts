@@ -8,9 +8,12 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_ACCESS_PUBLIC_KEY_PATH: z.string().min(1),
   JWT_ISSUER: z.string().default("openteams:mcp-auth-workspace"),
+  JWT_AUDIENCE: z.string().default("openteams-api"),
   AUTH_SERVICE_URL: z.string().url().default("http://localhost:4001"),
   INTERNAL_API_KEY: z.string().min(16),
   S3_ENDPOINT: z.string().url(),
+  /** Browser-reachable endpoint used only to sign URLs; internal S3 traffic keeps using S3_ENDPOINT. */
+  S3_PUBLIC_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),

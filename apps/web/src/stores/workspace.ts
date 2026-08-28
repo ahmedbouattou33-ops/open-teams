@@ -51,8 +51,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set((state) => ({ channelsByWorkspace: { ...state.channelsByWorkspace, [workspaceId]: channels } }));
       const first = channels.find((c) => c.joined) ?? channels[0];
       if (first) set({ activeChannelId: first.id });
-    } catch {
-      set((state) => ({ channelsByWorkspace: { ...state.channelsByWorkspace, [workspaceId]: existing } }));
+    } catch (error) {
+      // Auth failures are handled centrally by api.ts; preserve a useful local error for non-auth failures.
+      set((state) => ({ channelsByWorkspace: { ...state.channelsByWorkspace, [workspaceId]: existing }, error: error instanceof Error ? error.message : "Failed to load channels" }));
     }
   },
 

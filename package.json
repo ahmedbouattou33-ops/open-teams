@@ -17,9 +17,16 @@
     "db:migrate": "turbo run db:migrate --filter=@openteams/mcp-auth-workspace",
     "db:push": "turbo run db:push",
     "db:generate": "turbo run db:generate",
-    "gen:keys": "node services/mcp-auth-workspace/scripts/generate-keys.mjs"
+    "gen:keys": "node services/mcp-auth-workspace/scripts/generate-keys.mjs",
+    "test:security:static": "node scripts/security-static-audit.mjs",
+    "test:security:jwt": "pnpm --filter @openteams/mcp-auth-workspace build && node scripts/jwt-unit-proof.mjs",
+    "test:security:runtime": "node scripts/security-proof.mjs",
+    "test:security:member-joined": "pnpm --filter @openteams/mcp-messaging build && node scripts/member-joined-unit-proof.mjs",
+    "test:security:member-joined:integration": "pnpm --filter @openteams/mcp-messaging build && node scripts/member-joined-integration-proof.mjs",
+    "test:e2e:full": "playwright test scripts/e2e-full-coverage.spec.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "playwright": "^1.62.1",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"

@@ -39,6 +39,16 @@ export class AuthWorkspaceClient {
     return result;
   }
 
+  async listAccessibleWorkspaces(userId: string): Promise<string[]> {
+    const response = await fetch(
+      `${this.env.AUTH_SERVICE_URL}/internal/users/${encodeURIComponent(userId)}/workspaces`,
+      { headers: { "x-internal-key": this.env.internalApiKey }, signal: AbortSignal.timeout(3_000) },
+    );
+    if (!response.ok) return [];
+    const result = (await response.json()) as { workspaceIds: string[] };
+    return result.workspaceIds ?? [];
+  }
+
   async listAccessibleChannels(userId: string): Promise<string[]> {
     const response = await fetch(
       `${this.env.AUTH_SERVICE_URL}/internal/users/${encodeURIComponent(userId)}/channels`,

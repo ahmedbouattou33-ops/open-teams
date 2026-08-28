@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Hash, Lock, LogOut, Plus, Settings2 } from "lucide-react";
+import { Bookmark, Hash, Lock, LogOut, Plus, Settings2, UserPlus } from "lucide-react";
 import type { ChannelDTO } from "@openteams/shared-types";
 import { cn, initials } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { useUiStore } from "@/stores/ui";
+import { useLanguage } from "@/lib/i18n";
 import { CreateChannelDialog } from "@/components/dialogs/WorkspaceDialogs";
 
 export default function ChannelSidebar({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useLanguage();
   const user = useAuthStore((s) => s.user);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
@@ -16,9 +19,19 @@ export default function ChannelSidebar({ onSignOut }: { onSignOut: () => void })
   const activeChannelId = useWorkspaceStore((s) => s.activeChannelId);
   const setActiveChannel = useWorkspaceStore((s) => s.setActiveChannel);
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const setProfileOpen = useUiStore((s) => s.setProfileOpen);
+  const setAddMemberOpen = useUiStore((s) => s.setAddMemberOpen);
+  const setSavedOpen = useUiStore((s) => s.setSavedOpen);
+  const unreadByChannel = useUiStore((s) => s.unreadByChannel);
+  const realtimeConnected = useUiStore((s) => s.realtimeConnected);
+  const presenceByWorkspace = useUiStore((s) => s.presenceByWorkspace);
+  const customStatus = useUiStore((s) => s.customStatus);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
   const channels = (activeWorkspaceId ? channelsByWorkspace[activeWorkspaceId] : undefined) ?? [];
+  const ownStatus = user && activeWorkspaceId
+    ? presenceByWorkspace[activeWorkspaceId]?.[user.id] ?? (realtimeConnected ? "ONLINE" : "OFFLINE")
+    : "OFFLINE";
 
   return (
     <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-surface-border bg-surface-raised md:flex">
@@ -53,12 +66,16 @@ export default function ChannelSidebar({ onSignOut }: { onSignOut: () => void })
               channel={channel}
               active={channel.id === activeChannelId}
               onClick={() => setActiveChannel(channel.id)}
+              unreadCount={unreadByChannel[channel.id] ?? 0}
             />
           </li>
         ))}
         {channels.length === 0 ? (
           <li className="px-2 py-3 text-xs text-slate-500">No channels yet.</li>
         ) : null}
+        <li className="mt-4 flex items-center justify-between px-2 pb-1 pt-2"><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t("directMessages")}</span><button type="button" title="Invite member" disabled={!activeWorkspaceId} onClick={() => setAddMemberOpen(true)} className="rounded p-0.5 text-slate-400 hover:text-white disabled:opacity-40"><UserPlus className="h-4 w-4" /></button></li>
+        <li><button type="button" disabled={!activeWorkspaceId} onClick={() => setAddMemberOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-slate-500 hover:bg-surface-hover hover:text-slate-200 disabled:opacity-40"><UserPlus className="h-3.5 w-3.5" />Start a direct message</button></li>
+        <li><button type="button" onClick={() => setSavedOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-slate-500 hover:bg-surface-hover hover:text-slate-200"><Bookmark className="h-3.5 w-3.5" />{t("savedItems")}</button></li>
       </ul>
 
       <footer className="flex items-center gap-2 border-t border-surface-border bg-surface px-3 py-3">
@@ -66,12 +83,20 @@ export default function ChannelSidebar({ onSignOut }: { onSignOut: () => void })
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
             {user ? initials(user.displayName) : "?"}
           </div>
-          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-emerald-500" />
+          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface", ownStatus === "ONLINE" ? "bg-emerald-500" : "bg-slate-500")} title={ownStatus.toLowerCase()} />
         </div>
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-semibold text-white">{user?.displayName ?? "—"}</p>
-          <p className="truncate text-xs text-slate-400">{user?.email ?? ""}</p>
+          <p className="truncate text-xs text-slate-400">{customStatus || (ownStatus === "ONLINE" ? "Online" : "Offline")}</p>
         </div>
+        <button
+          type="button"
+          title="Open profile"
+          onClick={() => setProfileOpen(true)}
+          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-hover hover:text-white"
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
         <button
           type="button"
           title="Sign out"
@@ -93,10 +118,12 @@ function ChannelButton({
   channel,
   active,
   onClick,
+  unreadCount,
 }: {
   channel: ChannelDTO;
   active: boolean;
   onClick: () => void;
+  unreadCount: number;
 }) {
   return (
     <button
@@ -113,6 +140,7 @@ function ChannelButton({
         <Hash className="h-3.5 w-3.5 shrink-0 opacity-70" />
       )}
       <span className="truncate">{channel.name}</span>
+      {unreadCount > 0 ? <span className="ml-auto min-w-5 rounded-full bg-accent px-1.5 text-center text-[10px] font-bold text-white">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
       {channel.isEncrypted ? <Settings2 className="ml-auto h-3 w-3 shrink-0 text-emerald-400/70" /> : null}
     </button>
   );

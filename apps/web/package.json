@@ -2,7 +2,7 @@
   "name": "@openteams/web",
   "version": "0.1.0",
   "private": true,
-  "description": "OpenTeams web client (Next.js 14 App Router).",
+  "description": "OpenTeams web client (Next.js App Router).",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -15,7 +15,7 @@
     "cmdk": "^1.0.4",
     "highlight.js": "^11.10.0",
     "lucide-react": "^0.469.0",
-    "next": "^14.2.21",
+    "next": "^16.3.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",

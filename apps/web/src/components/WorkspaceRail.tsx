@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { LayoutDashboard, Plus } from "lucide-react";
 import { avatarColor, cn, initials } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { CreateWorkspaceDialog } from "@/components/dialogs/WorkspaceDialogs";
+import { useUiStore } from "@/stores/ui";
 
 export default function WorkspaceRail() {
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const selectWorkspace = useWorkspaceStore((s) => s.selectWorkspace);
   const [createOpen, setCreateOpen] = useState(false);
+  const setDashboardOpen = useUiStore((s) => s.setDashboardOpen);
 
   return (
     <nav
@@ -34,6 +36,15 @@ export default function WorkspaceRail() {
           {initials(workspace.name)}
         </button>
       ))}
+
+      <button
+        type="button"
+        title="Open workspace dashboard"
+        onClick={() => setDashboardOpen(true)}
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-surface-border bg-surface-raised text-slate-400 transition-colors hover:border-accent hover:text-accent"
+      >
+        <LayoutDashboard className="h-5 w-5" />
+      </button>
 
       <button
         type="button"

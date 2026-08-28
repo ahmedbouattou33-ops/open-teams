@@ -18,9 +18,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [lockedNotice, setLockedNotice] = useState(false);
+  const [expiredNotice, setExpiredNotice] = useState(false);
 
   useEffect(() => {
-    setLockedNotice(new URLSearchParams(window.location.search).get("locked") === "1");
+    const query = new URLSearchParams(window.location.search);
+    setLockedNotice(query.get("locked") === "1");
+    setExpiredNotice(query.get("reason") === "session-expired");
   }, []);
 
   async function onSubmit(event: FormEvent): Promise<void> {
@@ -61,6 +64,12 @@ export default function LoginPage() {
           <p className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
             <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
             An emergency lock was triggered. All sessions were terminated — sign in again to resume.
+          </p>
+        ) : null}
+        {expiredNotice ? (
+          <p role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 p-3 text-sm text-sky-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            Your session expired — please sign in again.
           </p>
         ) : null}
 

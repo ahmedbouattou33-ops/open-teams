@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+test-results
+.env
+**/.env
+.env.local
+**/.env.local
+.git
+backups
+coverage
+services/*/keys/*.pem

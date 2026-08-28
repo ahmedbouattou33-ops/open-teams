@@ -23,11 +23,13 @@ export interface ActiveCall {
   participants: Map<string, ParticipantState>;
 }
 
+import { randomUUID } from "node:crypto";
+
 export class RoomManager {
   private readonly calls = new Map<string, ActiveCall>();
 
   createCall(workspaceId: string, channelId: string, hostUserId: string, callType: "AUDIO" | "VIDEO"): ActiveCall {
-    const callId = `call_${Math.random().toString(36).slice(2, 12)}`;
+    const callId = `call_${randomUUID()}`;
     const call: ActiveCall = {
       id: callId,
       workspaceId,

@@ -1,15 +1,21 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import {
+  Bold,
   ClipboardList,
   CheckCircle2,
   CornerUpLeft,
   Eye,
+  Code2,
   EyeOff,
+  Italic,
+  List,
   Loader2,
+  Mic,
   Paperclip,
   SendHorizontal,
+  Square,
   StickyNote,
   Tag,
   Timer,
@@ -21,6 +27,7 @@ import { cn, errorMessage, formatBytes } from "@/lib/utils";
 import { useMessagesStore } from "@/stores/messages";
 import { useUiStore } from "@/stores/ui";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { sendTypingFrame } from "@/hooks/use-realtime";
 import { Markdown } from "./Markdown";
 
 const TAG_OPTIONS: readonly { value: MessageTag | ""; label: string; icon: React.ElementType }[] = [
@@ -35,6 +42,8 @@ interface Attachment {
   readonly state: "pending" | "uploading" | "done" | "error";
 }
 
+const EMPTY_FILES: readonly File[] = [];
+
 const EPHEMERAL_OPTIONS: readonly { value: number; label: string }[] = [
   { value: 0, label: "Persist" },
   { value: 30, label: "Burn 30s" },
@@ -42,7 +51,7 @@ const EPHEMERAL_OPTIONS: readonly { value: number; label: string }[] = [
   { value: 3600, label: "Burn 1h" },
 ];
 
-export default function Composer() {
+export default function Composer({ dropFiles = EMPTY_FILES, onDropFilesConsumed }: { dropFiles?: readonly File[]; onDropFilesConsumed?: () => void }) {
   const activeChannelId = useWorkspaceStore((s) => s.activeChannelId);
   const sendMessage = useMessagesStore((s) => s.receiveMessage);
   const markEphemeral = useMessagesStore((s) => s.markEphemeral);
@@ -58,6 +67,73 @@ export default function Composer() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dropFiles.length === 0) return;
+    setAttachments((current) => [...current, ...dropFiles.map((file): Attachment => file.size > MAX_FILE_SIZE_BYTES ? { file, state: "error" } : { file, state: "pending" })]);
+    onDropFilesConsumed?.();
+  }, [dropFiles, onDropFilesConsumed]);
+
+  useEffect(() => () => {
+    recorderRef.current?.stop();
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+    if (voicePreviewUrl) URL.revokeObjectURL(voicePreviewUrl);
+  }, [voicePreviewUrl]);
+
+  function applyFormat(prefix: string, suffix = prefix): void {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = text.slice(start, end) || "text";
+    const next = `${text.slice(0, start)}${prefix}${selected}${suffix}${text.slice(end)}`;
+    setText(next);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    });
+  }
+
+  async function startRecording(): Promise<void> {
+    if (recording || busy) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Voice recording is not supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      voiceChunksRef.current = [];
+      recorderStreamRef.current = stream;
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) voiceChunksRef.current.push(event.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(voiceChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type });
+        setVoicePreviewUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); });
+        setAttachments((current) => [...current, { file, state: "pending" }]);
+        stream.getTracks().forEach((track) => track.stop());
+        recorderStreamRef.current = null;
+        recorderRef.current = null;
+        setRecording(false);
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording(true);
+      setError(null);
+    } catch {
+      setError("Microphone permission is required to record a voice note.");
+    }
+  }
+
+  function stopRecording(): void {
+    recorderRef.current?.stop();
+  }
 
   function addFiles(event: ChangeEvent<HTMLInputElement>): void {
     const files = [...(event.target.files ?? [])];
@@ -97,12 +173,14 @@ export default function Composer() {
         setAttachments((current) =>
           current.map((a) => (a.file === attachment.file ? { ...a, state: "done" } : a)),
         );
+        const file = stored.file;
+        const fileReference = file.mimeType.startsWith("image/")
+          ? `![${file.fileName}](openteams-file:${file.id} "${file.mimeType} · ${formatBytes(file.size)}")`
+          : `[${file.fileName}](openteams-file:${file.id} "${file.mimeType} · ${formatBytes(file.size)}")`;
         const message = await api.sendMessage({
           channelId: activeChannelId,
-          content: {
-            type: "plain",
-            body: `[${stored.fileName}](openteams-file:${stored.id} "${stored.mimeType} · ${formatBytes(stored.size)}")`,
-          },
+          content: { type: "plain", body: fileReference },
+          referenceId: file.id,
           ...(replyTo ? { parentId: replyTo.id } : {}),
         });
         sendMessage(message);
@@ -120,6 +198,7 @@ export default function Composer() {
       }
 
       setText("");
+      if (activeChannelId) sendTypingFrame(activeChannelId, false);
       setTag("");
       setEphemeralSeconds(0);
       setAttachments([]);
@@ -200,6 +279,8 @@ export default function Composer() {
         </ul>
       ) : null}
 
+      {voicePreviewUrl ? <div className="mb-2 flex items-center gap-2 rounded-lg border border-surface-border bg-surface-raised p-2"><audio controls src={voicePreviewUrl} className="h-8 min-w-0 flex-1" aria-label="Voice note preview" /><button type="button" title="Remove voice note" onClick={() => { setAttachments((current) => current.filter((item) => !item.file.name.startsWith("voice-note-"))); setVoicePreviewUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return null; }); }} className="rounded p-1.5 text-slate-400 hover:bg-surface-hover hover:text-white"><X className="h-4 w-4" /></button></div> : null}
+
       {previewMode ? (
         <div className="min-h-[44px] rounded-t-lg border border-surface-border bg-surface-raised px-4 py-2.5">
           {text.trim() ? <Markdown text={text} /> : <p className="text-sm text-slate-500">Nothing to preview.</p>}
@@ -208,7 +289,15 @@ export default function Composer() {
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setText(next);
+            if (activeChannelId) {
+              sendTypingFrame(activeChannelId, next.trim().length > 0);
+              if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+              typingTimerRef.current = setTimeout(() => sendTypingFrame(activeChannelId, false), 2_000);
+            }
+          }}
           onKeyDown={onKeyDown}
           rows={Math.min(8, Math.max(1, text.split("\n").length))}
           placeholder={activeChannelId ? "Message… (Markdown supported · Enter to send · Shift+Enter for newline)" : "Select a channel first"}
@@ -218,6 +307,12 @@ export default function Composer() {
       )}
 
       <div className="flex items-center gap-1 rounded-b-lg border border-t-0 border-surface-border bg-surface-raised px-2 py-1.5">
+        <ToolbarButton title="Bold" onClick={() => applyFormat("**")} disabled={!activeChannelId || busy}><Bold className="h-4 w-4" /></ToolbarButton>
+        <ToolbarButton title="Italic" onClick={() => applyFormat("*")} disabled={!activeChannelId || busy}><Italic className="h-4 w-4" /></ToolbarButton>
+        <ToolbarButton title="Inline code" onClick={() => applyFormat("`")} disabled={!activeChannelId || busy}><Code2 className="h-4 w-4" /></ToolbarButton>
+        <ToolbarButton title="Code block" onClick={() => applyFormat("```\\n", "\\n```")} disabled={!activeChannelId || busy}><Code2 className="h-4 w-4" /></ToolbarButton>
+        <ToolbarButton title="Bullet list" onClick={() => applyFormat("- ", "")} disabled={!activeChannelId || busy}><List className="h-4 w-4" /></ToolbarButton>
+        <ToolbarButton title={recording ? "Stop recording" : "Record voice note"} onClick={recording ? stopRecording : () => void startRecording()} disabled={!activeChannelId || busy} active={recording}>{recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</ToolbarButton>
         <input
           ref={fileInputRef}
           type="file"

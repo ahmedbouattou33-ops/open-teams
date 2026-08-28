@@ -8,8 +8,10 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_ACCESS_PUBLIC_KEY_PATH: z.string().min(1),
   JWT_ISSUER: z.string().default("openteams:mcp-auth-workspace"),
+  JWT_AUDIENCE: z.string().default("openteams-api"),
   AUTH_SERVICE_URL: z.string().url().default("http://localhost:4001"),
   INTERNAL_API_KEY: z.string().min(16),
+  REDIS_URL: z.string().url().default("redis://localhost:6379"),
   /** Browser origins allowed by CORS (comma-separated). */
   CORS_ORIGIN: z
     .string()

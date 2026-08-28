@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
   // Per-service output avoids the pnpm shared-store clash between services.
   output   = "../src/generated/prisma"
 }
@@ -47,6 +48,14 @@ model User {
   workspaceMembers WorkspaceMember[]
   channelMembers   ChannelMember[]
   ownedWorkspaces  Workspace[]
+  agendaEvents     AgendaEvent[]
+  personalNotes    PersonalNote[]
+  eventParticipants EventParticipant[]
+  noteShares       NoteShare[]
+  assignedTasks    WorkTask[] @relation("assignedTasks")
+  createdTasks     WorkTask[] @relation("createdTasks")
+  teamTools        TeamTool[]
+  sentInvites      WorkspaceInvite[] @relation("sentInvites")
 }
 
 model RefreshToken {
@@ -72,6 +81,11 @@ model Workspace {
 
   members  WorkspaceMember[]
   channels Channel[]
+  agendaEvents AgendaEvent[]
+  personalNotes PersonalNote[]
+  workTasks WorkTask[]
+  teamTools TeamTool[]
+  invites WorkspaceInvite[]
 }
 
 model WorkspaceMember {
@@ -113,4 +127,168 @@ model ChannelMember {
 
   @@unique([channelId, userId])
   @@index([userId])
+}
+
+
+enum AgendaVisibility {
+  PRIVATE
+  SHARED
+  WORKSPACE
+}
+
+enum AgendaPermission {
+  VIEW
+  EDIT
+}
+
+model AgendaEvent {
+  id          String           @id @default(cuid())
+  ownerId     String
+  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  timezone    String           @default("UTC")
+  visibility  AgendaVisibility @default(PRIVATE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  participants EventParticipant[]
+  notes        PersonalNote[]
+
+  @@index([ownerId, startsAt])
+  @@index([workspaceId, startsAt])
+}
+
+model EventParticipant {
+  id         String           @id @default(cuid())
+  eventId    String
+  event      AgendaEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission AgendaPermission @default(VIEW)
+  accepted   Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model PersonalNote {
+  id          String        @id @default(cuid())
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  eventId     String?
+  event       AgendaEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  isPrivate   Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  shares NoteShare[]
+
+  @@index([ownerId, updatedAt])
+  @@index([workspaceId, updatedAt])
+}
+
+
+model NoteShare {
+  id         String           @id @default(cuid())
+  noteId     String
+  note       PersonalNote     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission AgendaPermission @default(VIEW)
+  createdAt  DateTime         @default(now())
+
+  @@unique([noteId, userId])
+  @@index([userId])
+}
+
+
+enum WorkTaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum WorkTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model WorkTask {
+  id          String         @id @default(cuid())
+  workspaceId String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User           @relation("createdTasks", fields: [creatorId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?          @relation("assignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  status      WorkTaskStatus @default(BACKLOG)
+  priority    WorkTaskPriority @default(MEDIUM)
+  dueAt       DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([assigneeId, status])
+  @@index([workspaceId, dueAt])
+}
+
+model TeamTool {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  url         String?
+  enabled     Boolean   @default(true)
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, enabled])
+}
+
+
+enum WorkspaceInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model WorkspaceInvite {
+  id            String                @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviterUserId String
+  inviter       User                  @relation("sentInvites", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  inviteeEmail  String?
+  code          String                @unique
+  role          MemberRole            @default(MEMBER)
+  status        WorkspaceInviteStatus @default(PENDING)
+  maxUses       Int?
+  useCount      Int                   @default(0)
+  expiresAt     DateTime
+  createdAt     DateTime              @default(now())
+
+  @@index([workspaceId, status])
+  @@index([inviteeEmail, status])
+  @@index([expiresAt])
 }

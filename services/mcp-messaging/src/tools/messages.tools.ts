@@ -1,11 +1,15 @@
 import { defineTool, McpError } from "@openteams/mcp-core";
 import {
   AddReactionInputSchema,
+  EditMessageInputSchema,
+  DeleteMessageInputSchema,
   GetChannelHistoryInputSchema,
   MarkAsReadInputSchema,
   MessagingToolName,
   SendMessageInputSchema,
   type AddReactionInput,
+  type EditMessageInput,
+  type DeleteMessageInput,
   type GetChannelHistoryInput,
   type MarkAsReadInput,
   type MessageDTO,
@@ -99,6 +103,49 @@ export function buildMessagingTools(prisma: PrismaClient, hub: RealtimeHub, auth
           messages: messages.map(toMessageDTO),
           nextCursor: messages.length === input.limit && oldest ? oldest.createdAt.toISOString() : null,
         };
+      },
+    }),
+
+    defineTool({
+      name: MessagingToolName.EditMessage,
+      description: "Edits only the caller's own message while preserving its original creation time.",
+      input: EditMessageInputSchema,
+      secure: true,
+      handler: async (input: EditMessageInput, ctx: AuthContext): Promise<{ message: MessageDTO }> => {
+        const userId = ctx.userId as string;
+        const current = await prisma.message.findUnique({ where: { id: input.messageId }, include: { reactions: true } });
+        if (!current || current.deletedAt || current.authorId !== userId) throw McpError.notFound("Message not found or not editable");
+        await requireAccess(authClient, current.channelId, userId);
+        const updated = await prisma.message.update({
+          where: { id: input.messageId },
+          data: {
+            body: input.content.type === "plain" ? input.content.body : null,
+            ciphertext: input.content.type === "encrypted" ? input.content.ciphertextB64 : null,
+            iv: input.content.type === "encrypted" ? input.content.ivB64 : null,
+            authTag: input.content.type === "encrypted" ? input.content.authTagB64 : null,
+            editedAt: new Date(),
+          },
+          include: { reactions: true },
+        });
+        const message = toMessageDTO(updated);
+        hub.broadcast(current.channelId, { type: "message.edited", message });
+        return { message };
+      },
+    }),
+
+    defineTool({
+      name: MessagingToolName.DeleteMessage,
+      description: "Soft-deletes only the caller's own message and removes its content from storage.",
+      input: DeleteMessageInputSchema,
+      secure: true,
+      handler: async (input: DeleteMessageInput, ctx: AuthContext): Promise<{ ok: true }> => {
+        const userId = ctx.userId as string;
+        const current = await prisma.message.findUnique({ where: { id: input.messageId }, select: { id: true, channelId: true, authorId: true, deletedAt: true } });
+        if (!current || current.deletedAt || current.authorId !== userId) throw McpError.notFound("Message not found or not deletable");
+        await requireAccess(authClient, current.channelId, userId);
+        await prisma.message.update({ where: { id: input.messageId }, data: { body: null, ciphertext: null, iv: null, authTag: null, deletedAt: new Date(), editedAt: null } });
+        hub.broadcast(current.channelId, { type: "message.deleted", channelId: current.channelId, messageId: current.id });
+        return { ok: true };
       },
     }),
 

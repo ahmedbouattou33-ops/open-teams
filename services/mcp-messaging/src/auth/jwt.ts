@@ -10,6 +10,7 @@ export function verifyAccessToken(token: string, env: AppEnv): AccessTokenClaims
     const payload = jwt.verify(token, env.accessPublicKeyPem, {
       algorithms: ["RS256"],
       issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
     });
     if (typeof payload === "string" || typeof payload.sub !== "string") return null;
     return { sub: payload.sub };

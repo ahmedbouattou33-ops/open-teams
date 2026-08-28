@@ -7,16 +7,16 @@ const config: Config = {
     extend: {
       colors: {
         surface: {
-          DEFAULT: "#0b0d10",
-          raised: "#11141a",
-          overlay: "#171b23",
-          hover: "#1d222c",
-          border: "#242a36",
+          DEFAULT: "rgb(var(--surface) / <alpha-value>)",
+          raised: "rgb(var(--surface-raised) / <alpha-value>)",
+          overlay: "rgb(var(--surface-overlay) / <alpha-value>)",
+          hover: "rgb(var(--surface-hover) / <alpha-value>)",
+          border: "rgb(var(--surface-border) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#5b6cff",
-          hover: "#6f80ff",
-          muted: "#2c355f",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
+          muted: "rgb(var(--accent-muted) / <alpha-value>)",
         },
       },
       fontFamily: {

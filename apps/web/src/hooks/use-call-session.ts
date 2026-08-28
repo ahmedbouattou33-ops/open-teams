@@ -277,7 +277,7 @@ export function useCallSession() {
       });
 
       try {
-        const localStream = await navigator.mediaDevices.getUserMedia({
+        const localStream = request.localStream ?? await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: request.callType === "VIDEO",
         });

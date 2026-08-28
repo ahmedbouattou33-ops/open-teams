@@ -4,6 +4,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
   // Per-service output avoids the pnpm shared-store clash between services.
   output   = "../src/generated/prisma"
 }

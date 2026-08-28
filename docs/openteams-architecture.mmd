@@ -1,0 +1,25 @@
+flowchart LR
+  U1[User A / Browser session] --> WEB[Next.js Web UI :8080]
+  U2[User B / Isolated browser session] --> WEB
+  WEB --> AUTH[mcp-auth-workspace :4001\nRS256 JWT · RBAC · Prisma]
+  WEB --> MSG[mcp-messaging :4002\nWebSocket · E2EE envelopes]
+  WEB --> RTC[mcp-media-rtc :4003\nWebRTC signaling]
+  WEB --> ST[mcp-storage :4004\nPresigned upload/download]
+  WEB --> AI[mcp-ai-agent :4005\nSummarization / transcription]
+  AUTH --> PG[(PostgreSQL\nUsers · Workspaces · Members\nInvites · Agenda · Notes · Tasks)]
+  MSG --> PG2[(PostgreSQL\nChannels · Messages · Receipts)]
+  ST --> MINIO[(MinIO S3\nEncrypted files)]
+  AUTH --> REDIS[(Redis\nSessions / coordination)]
+  MSG --> REDIS
+  RTC --> REDIS
+  AUTH -.->|member.joined| MSG
+  WEB -.->|access token + membership| AUTH
+  WEB -.->|ciphertext only| MSG
+
+  subgraph TenantBoundary[Workspace / Tenant boundary]
+    TEAM[Team shared space\nChannels · Work plan · Members]
+    PRIVATE[Personal space\nPrivate Agenda · Notes · Sessions]
+  end
+  AUTH --> TEAM
+  AUTH --> PRIVATE
+  TEAM -.->|explicit sharing only| PRIVATE

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Download, File as FileIcon, FileImage, FileText, Film, Loader2, Music } from "lucide-react";
 import { api } from "@/lib/api";
 import { audit, auditActions } from "@/lib/audit";
@@ -55,6 +55,13 @@ export function FileCard({
 
   const inlinePreview = mimeType?.startsWith("image/") && inlineUrl;
 
+  useEffect(() => {
+    if (!activeWorkspaceId || !mimeType?.startsWith("image/") || inlineUrl) return;
+    let cancelled = false;
+    void api.downloadUrl(fileId, activeWorkspaceId).then((download) => { if (!cancelled) setInlineUrl(download.downloadUrl); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [activeWorkspaceId, fileId, inlineUrl, mimeType]);
+
   return (
     <span className="my-1 block max-w-sm">
       <button
@@ -69,7 +76,7 @@ export function FileCard({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-white">{name}</span>
           <span className="block text-xs text-slate-500">
-            {size !== undefined ? `${(size / 1024).toFixed(0)} KB · ` : ""}Click to download
+            {size !== undefined ? `${(size / 1024).toFixed(0)} KB · ` : ""}{mimeType?.startsWith("image/") ? "Image preview · " : ""}Click to download
           </span>
         </span>
         <Download className="h-4 w-4 shrink-0 text-slate-500" />
