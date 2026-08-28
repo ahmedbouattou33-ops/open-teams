@@ -13,4 +13,5 @@ coverage/
 
 # Security � secrets outside repo
 openteams-secrets/
+*.zip
 
