@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1115" />
+<title>WebRTC Call</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="setup" class="panel">
+      <h1>WebRTC Call</h1>
+      <label for="myId">Your ID</label>
+      <input id="myId" autocomplete="off" placeholder="e.g. alice" />
+      <button id="registerBtn">Connect</button>
+      <p id="status" class="status">Not connected</p>
+    </section>
+
+    <section id="dial" class="panel hidden">
+      <p class="me">You are <strong id="meLabel"></strong></p>
+      <label for="peerId">Call user ID</label>
+      <input id="peerId" autocomplete="off" placeholder="e.g. bob" />
+      <button id="callBtn">Call</button>
+      <p id="dialStatus" class="status"></p>
+    </section>
+
+    <section id="incoming" class="panel hidden">
+      <p>Incoming call from <strong id="callerLabel"></strong></p>
+      <div class="row">
+        <button id="acceptBtn" class="accept">Accept</button>
+        <button id="rejectBtn" class="reject">Reject</button>
+      </div>
+    </section>
+
+    <section id="callView" class="hidden">
+      <video id="remoteVideo" playsinline autoplay></video>
+      <video id="localVideo" playsinline autoplay muted></video>
+      <div class="controls">
+        <button id="muteBtn">Mute</button>
+        <button id="camBtn">Camera off</button>
+        <button id="hangupBtn" class="reject">Hang up</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

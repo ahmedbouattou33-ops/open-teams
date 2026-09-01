@@ -1,0 +1,117 @@
+:root {
+  --bg: #0f1115;
+  --panel: #191c23;
+  --text: #f2f4f8;
+  --accent: #3d7eff;
+  --danger: #e5484d;
+  --ok: #30a46c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.hidden { display: none !important; }
+
+.panel {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 { margin: 0 0 8px; font-size: 1.4rem; }
+label { font-size: .85rem; opacity: .7; }
+
+input {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid #2b2f3a;
+  background: #12141a;
+  color: var(--text);
+}
+
+button {
+  padding: 14px;
+  font-size: 1rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button.accept { background: var(--ok); }
+button.reject { background: var(--danger); }
+button:active { filter: brightness(.9); }
+
+.row { display: flex; gap: 12px; }
+.row button { flex: 1; }
+
+.status { min-height: 1.2em; font-size: .85rem; opacity: .75; margin: 0; }
+.me { margin: 0; font-size: .9rem; opacity: .8; }
+
+#callView {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+#remoteVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+#localVideo {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  width: 28vw;
+  max-width: 180px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #2b2f3a;
+  background: #111;
+}
+
+.controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.controls button { flex: 1; max-width: 160px; }
+
+@media (min-width: 720px) {
+  #localVideo { width: 220px; max-width: 220px; }
+}
