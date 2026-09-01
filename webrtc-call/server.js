@@ -17,8 +17,10 @@ io.on('connection', (socket) => {
   socket.on('register', (userId, ack) => {
     const id = String(userId || '').trim();
     if (!id) return ack && ack({ ok: false, error: 'empty-id' });
-    if (users.has(id) && users.get(id) !== socket.id) {
-      return ack && ack({ ok: false, error: 'id-taken' });
+    const holder = users.get(id);
+    if (holder && holder !== socket.id) {
+      if (io.sockets.sockets.has(holder)) return ack && ack({ ok: false, error: 'id-taken' });
+      sockets.delete(holder);
     }
     users.set(id, socket.id);
     sockets.set(socket.id, id);

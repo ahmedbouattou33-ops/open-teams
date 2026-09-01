@@ -76,17 +76,22 @@ function endCall(notifyPeer = true) {
   show($('dial'), true);
 }
 
-$('registerBtn').onclick = () => {
-  const id = $('myId').value.trim();
-  if (!id) return setStatus('Enter an ID first');
+function register(id, onError) {
   socket.emit('register', id, (res) => {
-    if (!res.ok) return setStatus(res.error === 'id-taken' ? 'ID already in use' : 'Registration failed');
+    if (!res.ok) return onError(res.error === 'id-taken' ? 'ID already in use' : 'Registration failed');
     myId = res.userId;
     $('meLabel').textContent = myId;
     setStatus('Connected');
+    $('dialStatus').textContent = '';
     show($('setup'), false);
     show($('dial'), true);
   });
+}
+
+$('registerBtn').onclick = () => {
+  const id = $('myId').value.trim();
+  if (!id) return setStatus('Enter an ID first');
+  register(id, setStatus);
 };
 
 $('callBtn').onclick = async () => {
@@ -183,11 +188,19 @@ socket.on('peer-unavailable', ({ to }) => {
   endCall(false);
 });
 
+socket.on('connect', () => {
+  if (!myId) return;
+  register(myId, (err) => {
+    myId = null;
+    setStatus(err);
+    show($('dial'), false);
+    show($('setup'), true);
+  });
+});
+
 socket.on('disconnect', () => {
-  setStatus('Disconnected');
   endCall(false);
-  show($('setup'), true);
-  show($('dial'), false);
+  if (myId) $('dialStatus').textContent = 'Reconnecting...';
 });
 
 if ('serviceWorker' in navigator) {
