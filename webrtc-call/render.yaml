@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: webrtc-call
+    runtime: node
+    plan: free
+    rootDir: webrtc-call
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
