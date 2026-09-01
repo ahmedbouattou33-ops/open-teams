@@ -167,8 +167,16 @@ socket.on('ice-candidate', async ({ payload }) => {
   try { await pc.addIceCandidate(payload); } catch (_) { /* ignore */ }
 });
 
-socket.on('reject', () => endCall(false));
-socket.on('hangup', () => endCall(false));
+socket.on('reject', () => {
+  endCall(false);
+  $('dialStatus').textContent = 'Call rejected';
+});
+
+socket.on('hangup', () => {
+  endCall(false);
+  $('dialStatus').textContent = '';
+});
+
 socket.on('peer-disconnected', ({ from }) => { if (from === peerId) endCall(false); });
 socket.on('peer-unavailable', ({ to }) => {
   $('dialStatus').textContent = `User ${to} is not available`;
