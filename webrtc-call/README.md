@@ -21,6 +21,16 @@ Open two tabs, register as `alice` and `bob`, then call by ID.
 - PWA: `manifest.webmanifest` + `sw.js` (network-first, offline shell). Installable
   from mobile browsers once served over HTTPS.
 
+## Deploy to Render (free)
+
+`render.yaml` is a Blueprint for a free Node web service (`rootDir: webrtc-call`,
+`npm ci` / `npm start`). In the Render dashboard: **New → Blueprint**, pick this
+repo, and Render provisions `webrtc-call` at `https://<name>.onrender.com` with
+TLS — enough for phone ↔ PC calls over WiFi/4G.
+
+Render's free tier sleeps after ~15 min idle; the first request after that takes
+~30s while the instance wakes.
+
 ## Signaling protocol
 
 Client → server: `register(userId, ack)`, then `{ to, payload }` for
