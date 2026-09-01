@@ -9,6 +9,9 @@ let pc = null;
 let localStream = null;
 let pendingOffer = null;
 let pendingCandidates = [];
+let disconnectTimer = null;
+
+const DISCONNECT_GRACE_MS = 10000;
 
 function show(el, visible) {
   el.classList.toggle('hidden', !visible);
@@ -39,7 +42,15 @@ function createPeerConnection(remoteId) {
   };
 
   pc.onconnectionstatechange = () => {
-    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) endCall(false);
+    if (!pc) return;
+    clearTimeout(disconnectTimer);
+    if (pc.connectionState === 'failed') return endCall(false);
+    if (pc.connectionState === 'disconnected') {
+      // transient during ICE renegotiation or a brief network blip
+      disconnectTimer = setTimeout(() => {
+        if (pc && pc.connectionState === 'disconnected') endCall(false);
+      }, DISCONNECT_GRACE_MS);
+    }
   };
 
   localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
@@ -60,8 +71,14 @@ function enterCallView() {
 }
 
 function endCall(notifyPeer = true) {
+  clearTimeout(disconnectTimer);
   if (notifyPeer && peerId) socket.emit('hangup', { to: peerId, payload: null });
-  if (pc) { pc.close(); pc = null; }
+  if (pc) {
+    const closing = pc;
+    pc = null;
+    closing.onconnectionstatechange = null;
+    closing.close();
+  }
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop());
     localStream = null;
@@ -182,7 +199,11 @@ socket.on('hangup', () => {
   $('dialStatus').textContent = '';
 });
 
-socket.on('peer-disconnected', ({ from }) => { if (from === peerId) endCall(false); });
+socket.on('peer-disconnected', ({ from }) => {
+  if (from !== peerId) return;
+  // the peer may just be reconnecting; keep a live call up and let ICE decide
+  if (!pc || pc.connectionState !== 'connected') endCall(false);
+});
 socket.on('peer-unavailable', ({ to }) => {
   $('dialStatus').textContent = `User ${to} is not available`;
   endCall(false);
@@ -199,8 +220,8 @@ socket.on('connect', () => {
 });
 
 socket.on('disconnect', () => {
-  endCall(false);
-  if (myId) $('dialStatus').textContent = 'Reconnecting...';
+  // an established call survives a signaling blip; only the dial screen needs a hint
+  if (myId && !pc) $('dialStatus').textContent = 'Reconnecting...';
 });
 
 if ('serviceWorker' in navigator) {
